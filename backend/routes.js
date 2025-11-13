@@ -15,11 +15,23 @@ router.post("/discover", async (req, res) => {
     // Step 1: Retrieve relevant chunks from Qdrant
     const retrievedChunks = await retrieverController(userQuery);
 
+    if(!retrievedChunks || retrievedChunks.length === 0) {
+      return res.status(500).json({ success: false, error: "Failed to retrieve chunks from Qdrant." });
+    }
+
     // Step 2: Build the final prompt for OpenAI
     const prompt = promptController(userQuery, retrievedChunks);
 
+    if(!prompt) {
+      return res.status(500).json({ success: false, error: "Failed to build prompt." });
+    }
+
     // Step 3: Generate problems from LLM
     const problems = await problemController(prompt);
+
+    if(!problems) {
+      return res.status(500).json({ success: false, error: "Failed to generate problems." });
+    }
 
     return res.json({
       success: true,
