@@ -1,24 +1,60 @@
-import express from "express";
-import cors from "cors";
-import dotenv from "dotenv";
+import 'dotenv/config';
+import { PDFLoader } from "@langchain/community/document_loaders/fs/pdf";
+import { OpenAIEmbeddings } from "@langchain/openai";
+import { QdrantVectorStore } from "@langchain/qdrant";
+import fs from "fs";
 
-import routes from "./routes.js";
+async function ingestPDF() {
+  try {
+    // ----------------------------
+    // 1. Load PDF
+    // ----------------------------
+    const pdfPath = "./data/document.pdf";   // <-- Change PDF here
 
-dotenv.config();
+    if (!fs.existsSync(pdfPath)) {
+      console.error("❌ PDF file not found at:", pdfPath);
+      process.exit(1);
+    }
 
-const app = express();
-app.use(cors());
-app.use(express.json());
+    console.log("📄 Loading PDF:", pdfPath);
+    const loader = new PDFLoader(pdfPath);
 
-// Health Check
-app.get("/", (req, res) => {
-  res.send({ status: "Backend running..." });
-});
+    // docs = array of pages
+    const docs = await loader.load();
 
-// Use routes table
-app.use("/api", routes);
+    if (docs.length === 0) {
+      console.log("❌ No text found in PDF. Exiting.");
+      return;
+    }
 
-// Start Server
-app.listen(3000, () => {
-  console.log("🚀 Backend running on http://localhost:3000");
-});
+    console.log(`📄 PDF Loaded → ${docs.length} pages`);
+
+    // ----------------------------
+    // 2. Setup embeddings
+    // ----------------------------
+    const embeddings = new OpenAIEmbeddings({
+      apiKey: process.env.OPENAI_API_KEY,
+      model: "text-embedding-3-large",
+    });
+
+    // ----------------------------
+    // 3. Push to Qdrant
+    // ----------------------------
+    console.log("🚀 Connecting to Qdrant...");
+
+    const vectorStore = await QdrantVectorStore.fromDocuments(
+      docs,
+      embeddings,
+      {
+        url: process.env.QDRANT_URL, // e.g. "http://YOUR-VPS-IP:6333"
+        collectionName: "climate-collection", // change as needed
+      }
+    );
+
+    console.log("✅ PDF embedded and stored in Qdrant successfully!");
+  } catch (err) {
+    console.error("❌ Error:", err);
+  }
+}
+
+ingestPDF();
