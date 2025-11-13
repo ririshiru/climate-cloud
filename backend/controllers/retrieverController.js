@@ -12,11 +12,15 @@ const QDRANT_URL = process.env.QDRANT_URL;          // example: http://localhost
 function buildUserQuery(userData) {
   return `
     Profession: ${userData.profession || "unknown"}
-    Domain: ${userData.domain || "climate + environment"}
-    Interest: ${userData.goal || "identify real world problems"}
-    Generate relevant context.
+    Qualification: ${userData.qualification || "unknown"}
+    Domain of interest: ${userData.domain || "climate & environment"}
+    Specific Goal: ${userData.specificGoal || "find climate-related problems to work on"}
+    User Location: ${userData.location || "global"}
+
+    Based on these details, retrieve the most relevant climate or environmental problems and contextual information from the database.
   `;
 }
+
 
 /**
  * Step 2: Retrieve relevant chunks from Qdrant
