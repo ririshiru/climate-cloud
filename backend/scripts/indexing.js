@@ -9,7 +9,7 @@ async function ingestPDF() {
     // ----------------------------
     // 1. Load PDF
     // ----------------------------
-    const pdfPath = "./data/document.pdf";   // <-- Change PDF here
+    const pdfPath = "./resource/ED503680.pdf";   // <-- Change PDF here
 
     if (!fs.existsSync(pdfPath)) {
       console.error("❌ PDF file not found at:", pdfPath);

@@ -3,15 +3,27 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
+  "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "index": "node scripts/indexing.js",
+    "dev": "nodemon index.js",
+    "start": "node index.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@langchain/community": "^1.0.2",
+    "@langchain/core": "^1.0.4",
+    "@langchain/openai": "^1.1.0",
+    "@langchain/qdrant": "^1.0.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
-    "express": "^5.1.0"
+    "express": "^5.1.0",
+    "multer": "^2.0.2",
+    "nodemon": "^3.1.11",
+    "openai": "^6.8.1",
+    "pdf-parse": "^1.1.4"
   }
 }
