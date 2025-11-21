@@ -1,15 +1,18 @@
-import 'dotenv/config';
 import { PDFLoader } from "@langchain/community/document_loaders/fs/pdf";
 import { OpenAIEmbeddings } from "@langchain/openai";
 import { QdrantVectorStore } from "@langchain/qdrant";
 import fs from "fs";
+// import dotenv from "dotenv/config";
+import { QDRANT_URL, OPENAI_API_KEY } from "../index.js";
+
+
 
 async function ingestPDF() {
   try {
     // ----------------------------
     // 1. Load PDF
     // ----------------------------
-    const pdfPath = "./data/document.pdf";   // <-- Change PDF here
+    const pdfPath = "./resource/Resource01.pdf"; // <-- Change PDF here
 
     if (!fs.existsSync(pdfPath)) {
       console.error("❌ PDF file not found at:", pdfPath);
@@ -33,7 +36,7 @@ async function ingestPDF() {
     // 2. Setup embeddings
     // ----------------------------
     const embeddings = new OpenAIEmbeddings({
-      apiKey: process.env.OPENAI_API_KEY,
+      apiKey: OPENAI_API_KEY,
       model: "text-embedding-3-large",
     });
 
@@ -41,12 +44,13 @@ async function ingestPDF() {
     // 3. Push to Qdrant
     // ----------------------------
     console.log("🚀 Connecting to Qdrant...");
+    // console.log(`QDRANT_URL: ${process.env.QDRANT_URL}`);/
 
     const vectorStore = await QdrantVectorStore.fromDocuments(
       docs,
       embeddings,
       {
-        url: process.env.QDRANT_URL, // e.g. "http://YOUR-VPS-IP:6333"
+        url: QDRANT_URL,
         collectionName: "climate-collection", // change as needed
       }
     );

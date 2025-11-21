@@ -22,3 +22,6 @@ app.use("/api", routes);
 app.listen(3000, () => {
   console.log("🚀 Backend running on http://localhost:3000");
 });
+
+export const QDRANT_URL = process.env.QDRANT_URL;
+export const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
