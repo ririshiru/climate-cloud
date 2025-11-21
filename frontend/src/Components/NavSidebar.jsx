@@ -2,43 +2,73 @@ import React, { useState } from 'react'
 import { useAppContext } from '../Context/AppContext'
 import {assets} from '../assets/assets'
 import moment from 'moment'
-import { useNavigate } from 'react-router-dom' // Import the hook
+import { useNavigate } from 'react-router-dom' 
 
-const NavSidebar = ({isMenuOpen, setIsMenuOpen}) => { // 🛠️ FIX 1: Accepting menu state as props
+const NavSidebar = ({isMenuOpen, setIsMenuOpen}) => {
 
-  const {chats, setSelectedChat, theme, setTheme, user} = useAppContext()
+  const {
+      chats, setSelectedChat, theme, setTheme, user, 
+      startNewChat, // FIX 1, 5: Used for Find New Problem/New Chat
+      clearChatHistory // FIX 2: Used for clearing history
+      // Note: setMessages, setTopChallenges, setIsProfiling are now in startNewChat
+  } = useAppContext()
+  
   const [search, setSearch] = useState('')
+  const [showInvestorForm, setShowInvestorForm] = useState(false); // FIX 4: State for form
+  const [investorInputs, setInvestorInputs] = useState({ name: '', orgEmail: '' });
   
   const navigate = useNavigate()
 
   // Placeholder function for logout. 
   const handleLogout = () => {
       console.log("Logging out...");
+      // In a real app, you would clear the user token here and setUser(null)
   }
   
-  // Placeholder function for selecting a chat (used in the mapped chats below)
+  // Placeholder function for selecting a chat
   const handleSelectChat = (chat) => {
       setSelectedChat(chat);
-      // 🛠️ FIX 4: Close the menu when a chat is selected on mobile
       if (setIsMenuOpen) { 
           setIsMenuOpen(false); 
       }
-      // You should also navigate to the main chat window if you are on a different page
       navigate('/');
+  }
+  
+  // FIX 3: Placeholder for deleting a single chat
+  const handleDeleteChat = (e, chatId) => {
+      e.stopPropagation(); // Prevents chat from being selected
+      console.log(`Deleting chat ID: ${chatId}`);
+      // Actual deletion logic would involve filtering the chats array:
+      // setChats(prev => prev.filter(chat => chat._id !== chatId));
+      // if (selectedChat?._id === chatId) {
+      //     setSelectedChat(null);
+      // }
+  }
+
+  // FIX 4: Handle investor form submission (Placeholder)
+  const handleInvestorSubmit = () => {
+    if (investorInputs.name && investorInputs.orgEmail) {
+        // Here you would send the data to your backend
+        console.log("Investor details submitted:", investorInputs);
+        navigate('/InvestorPage');
+        setShowInvestorForm(false);
+        setInvestorInputs({ name: '', orgEmail: '' });
+    } else {
+        alert("Please fill in both fields.");
+    }
   }
 
   return (
-    // 🛠️ FIX 2: Apply conditional class for mobile menu sliding:
     <div className={`flex flex-col h-screen min-w-72 p-5 dark:bg-gradient-to-b from-
       [#242124]/30 to-[#000000]/30 border-r border-[#80609F]/30 backdrop-blur-3xl
-      transition-all duration-500 max-md:absolute left-0 z-1 ${!isMenuOpen && 'max-md:-translate-x-full'}`}>
+      transition-all duration-500 max-md:absolute left-0 z-20 ${!isMenuOpen && 'max-md:-translate-x-full'}`}>
       
-      {/* 🛠️ FIX 5: Close Icon (Must be inside the main sidebar div) */}
+      {/* Close Icon */}
       <img 
           src={assets.close_icon} 
           className='absolute top-3 right-3 w-5 h-5 cursor-pointer md:hidden not-dark:invert' 
           alt="Close menu" 
-          onClick={() => setIsMenuOpen(false)} // 🛠️ FIX 5b: Add click handler
+          onClick={() => setIsMenuOpen(false)} 
       />
 
       {/* LOGO (Header) */}
@@ -48,18 +78,13 @@ const NavSidebar = ({isMenuOpen, setIsMenuOpen}) => { // 🛠️ FIX 1: Acceptin
         className='w-full max-w-60 mr-auto ml-3 mt-2' 
       />
 
-      {/* NEW PROBLEM BUTTON */}
+      {/* NEW PROBLEM BUTTON (FIX 1: Using startNewChat) */}
       <button 
-  onClick={() => {
-    setSelectedChat(null);
-    setMessages([]);
-    setTopChallenges(null);
-    setIsProfiling(true);
-  }}
-  className="btn mx-4 py-3 px-2 mt-3 text-white bg-gradient-to-r from-[#56dcf7] to-[#3D81F6] text-sm rounded-md cursor-pointer flex justify-center items-center"
->
-  Find New Problem
-</button>
+        onClick={startNewChat}
+        className="btn mx-4 py-2 px-2 mt-3 text-white bg-gradient-to-r from-[#56dcf7] to-[#3D81F6] text-sm rounded-md cursor-pointer flex justify-center items-center"
+      >
+        Find New Problem
+      </button>
 
       {/* Search Conversations Input */}
       <div className='flex items-center gap-2 mt-4 mx-4 p-3 border  border-gray-400 dark:border-white/20 rounded-md'>
@@ -75,7 +100,16 @@ const NavSidebar = ({isMenuOpen, setIsMenuOpen}) => { // 🛠️ FIX 1: Acceptin
 
       {/* Recent Chats Header */}
       {chats.length > 0 && 
-        <p className='mt-4 text-sm mx-4'>Recent Chats</p>
+        <div className='flex justify-between items-center mt-4 mx-4'>
+            <p className='text-sm'>Recent Chats</p>
+            {/* FIX 2: Clear History Bin */}
+            <img 
+                src={assets.binlightmode} 
+                className='w-4 h-4 cursor-pointer not-dark:invert' 
+                alt="Clear History"
+                onClick={clearChatHistory} // FIX 2: New function call
+            />
+        </div>
       }
 
       {/* Chat List Container */}
@@ -86,8 +120,9 @@ const NavSidebar = ({isMenuOpen, setIsMenuOpen}) => { // 🛠️ FIX 1: Acceptin
               ).map((chat) => (
                   <div 
                       key={chat._id} 
-                      className='p-2 mx-4 dark:bg-[#57317C]/10 border border-gray-300 dark:border-[#80609F]/15 rounded-md cursor-pointer flex justify-between group'
-                      onClick={() => handleSelectChat(chat)} // 🛠️ FIX 6: Use selection handler
+                      className={`p-2 mx-4 border border-gray-300 dark:border-[#80609F]/15 rounded-md cursor-pointer flex justify-between group 
+                          ${selectedChat?._id === chat._id ? 'bg-[#57317C]/20 dark:bg-[#57317C]/30' : 'dark:bg-[#57317C]/10'}`}
+                      onClick={() => handleSelectChat(chat)} 
                   >
                       {/* Chat Content */}
                       <div>
@@ -99,47 +134,89 @@ const NavSidebar = ({isMenuOpen, setIsMenuOpen}) => { // 🛠️ FIX 1: Acceptin
                           </p>
                       </div>
                       
-                      {/* Bin Icon */}
+                      {/* Bin Icon (FIX 3: Functionality added) */}
                       <img 
                           src={assets.binlightmode} 
                           className='hidden group-hover:block w-4 h-4 flex-shrink-0 cursor-pointer not-dark:invert'
                           alt="Delete Chat" 
+                          onClick={(e) => handleDeleteChat(e, chat._id)} // FIX 3: Delete handler
                       />
                   </div>
               ))
           }
+           {/* FIX 2: Display message when history is empty */}
+          {chats.length === 0 && (
+             <p className='text-xs text-center text-gray-500 dark:text-[#B1A6C0] mx-4 mt-8'>
+                No recent chats. Start a new problem!
+             </p>
+          )}
       </div>
 
       {/* My Impact Link */}
       <div 
-          onClick={() => { navigate('/ImpactPage') }} // 🛠️ FIX 3: Corrected path
+          onClick={() => { navigate('/ImpactPage') }} 
           className='flex items-center gap-2 p-2 mx-4 mb-2 border border-gray-300 
           dark:border-white/15 rounded-md cursor-pointer hover:scale-[1.01] transition-all'
       >
           <img src={assets.MyImpact} className='w-5 not-dark:invert' alt="My Impact Icon" />
-          
           <div className='flex flex-col text-sm'>
               <p>My Impact</p>
           </div>
       </div>
 
-      {/* For Investors Link */}
+      {/* For Investors Link (FIX 4: Added Verification Flow) */}
       <div 
-          onClick={() => { navigate('/InvestorPage') }} // 🛠️ FIX 3: Corrected path
+          onClick={() => { setShowInvestorForm(true) }} // Show verification form first
           className='flex items-center gap-2 p-2 mx-4 mt-4 mb-2 border border-gray-300 
           dark:border-white/15 rounded-md cursor-pointer hover:scale-[1.01] transition-all'
       >
           <img src={assets.diamond_icon} className='w-5 not-dark:invert' alt="Investor Icon" />
-          
           <div className='flex flex-col text-sm'>
               <p>For Investors</p>
           </div>
       </div>
+      
+      {/* FIX 4: Investor Verification Form Modal */}
+      {showInvestorForm && (
+        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-30">
+            <div className="bg-white dark:bg-[#1a1a1a] p-6 rounded-lg shadow-2xl w-80">
+                <h3 className="text-lg font-bold mb-4">Investor Verification</h3>
+                <input 
+                    type="text" 
+                    placeholder="Your Name" 
+                    className="w-full p-2 mb-3 border rounded text-sm dark:bg-[#333] dark:border-gray-700"
+                    value={investorInputs.name}
+                    onChange={(e) => setInvestorInputs({...investorInputs, name: e.target.value})}
+                />
+                <input 
+                    type="email" 
+                    placeholder="NGO/Organisation Email" 
+                    className="w-full p-2 mb-4 border rounded text-sm dark:bg-[#333] dark:border-gray-700"
+                    value={investorInputs.orgEmail}
+                    onChange={(e) => setInvestorInputs({...investorInputs, orgEmail: e.target.value})}
+                />
+                <div className="flex justify-end gap-3">
+                    <button 
+                        onClick={() => setShowInvestorForm(false)} 
+                        className="text-sm px-4 py-2 border rounded dark:border-gray-700"
+                    >
+                        Cancel
+                    </button>
+                    <button 
+                        onClick={handleInvestorSubmit}
+                        className="text-sm px-4 py-2 rounded text-white bg-[#3D81F6] hover:bg-[#56dcf7]"
+                    >
+                        Proceed
+                    </button>
+                </div>
+            </div>
+        </div>
+      )}
 
-      {/* User Account */}
+      {/* User Account (FIX 5: Login connection) */}
       <div 
           className='flex items-center gap-3 p-3 mx-4 mt-4 mb-4 border border-gray-300 dark:border-white/15 rounded-md cursor-pointer group'
-          onClick={user ? handleLogout : () => navigate('/login')} // Example login/logout handler
+          onClick={user ? handleLogout : () => navigate('/login')} // Navigate to /login if no user
       >
           <img src={assets.user_icon} className='w-7 rounded-full' alt="User Profile" />
           <p className='flex-1 text-sm  dark:text-primary truncate'>
