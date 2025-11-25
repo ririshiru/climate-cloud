@@ -1,31 +1,53 @@
-import { createContext, useEffect, useState, useContext} from "react";
-import {useNavigate} from "react-router-dom";
+import { createContext, useEffect, useState, useContext } from "react";
+import { useNavigate } from "react-router-dom";
 import { dummyChats, dummyUserData } from "../assets/assets";
+import { supabase } from "../lib/supabase";
 
-const AppContext=createContext()
+const AppContext = createContext()
 
-export const AppContextProvider=({children})=>{
+export const AppContextProvider = ({ children }) => {
 
-    const navigate= useNavigate()
-    const [user,setUser]=useState(null);
-    const [chats,setChats]=useState([]);
-    const [selectedChat,setSelectedChat]=useState(null);
+    const navigate = useNavigate()
+    const [user, setUser] = useState(null);
+    const [chats, setChats] = useState([]);
+    const [selectedChat, setSelectedChat] = useState(null);
     const [messages, setMessages] = useState([]); // New state for current chat messages
     const [topChallenges, setTopChallenges] = useState(null); // New state for challenges
     const [isProfiling, setIsProfiling] = useState(false); // New state for profiling mode
     // New state to hold the AI output that the user can choose to store in 'My Impact'
-    const [currentProjectResult, setCurrentProjectResult] = useState(null); 
-    
-    const [theme,setTheme] = useState(localStorage.getItem('theme')||'light');
+    const [currentProjectResult, setCurrentProjectResult] = useState(null);
 
+    const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light');
 
-    const fetchUser = async ()=>{
+    const fetchUser = async () => {
         setUser(dummyUserData)
     }
 
-    const fetchUsersChats= async ()=>{
-        setChats(dummyChats)
-        setSelectedChat(dummyChats[0])
+    const fetchUsersChats = async () => {
+        if (!user) return;
+
+        try {
+            const { data, error } = await supabase
+                .from('projects')
+                .select('*')
+                .eq('user_id', user.$id || user.user_id)
+                .order('created_at', { ascending: false });
+
+            if (error) throw error;
+
+            // Map projects to chat format for sidebar
+            const mappedChats = data.map(project => ({
+                _id: project.id,
+                name: project.title,
+                updatedAt: project.created_at,
+                messages: [{ content: project.original_problem }]
+            }));
+
+            setChats(mappedChats);
+        } catch (error) {
+            console.error("Error fetching chats:", error);
+            setChats([]);
+        }
     }
 
     // New Function to clear existing dummy chats
@@ -33,7 +55,7 @@ export const AppContextProvider=({children})=>{
         setChats([]);
         setSelectedChat(null);
     }
-    
+
     // New Function to start a new chat session and reset state
     const startNewChat = () => {
         setSelectedChat(null);
@@ -44,34 +66,34 @@ export const AppContextProvider=({children})=>{
     }
 
     // Toggle theme logic (Uncommented and improved)
-    useEffect(()=>{
-        if(theme ==='dark'){
+    useEffect(() => {
+        if (theme === 'dark') {
             document.documentElement.classList.add('dark');
-        }else{
+        } else {
             document.documentElement.classList.remove('dark');
         }
         localStorage.setItem('theme', theme)
-    },[theme])
-    
-    useEffect(()=>{
-        if (user){
+    }, [theme])
+
+    useEffect(() => {
+        if (user) {
             fetchUsersChats()
         }
-        else{
+        else {
             setChats([])
             setSelectedChat(null)
         }
-    },[user])
+    }, [user])
 
-    useEffect (()=>{
+    useEffect(() => {
         fetchUser()
         // Issue 5: When the site opens, start a new chat, not an old one.
-        startNewChat() 
-    },[])
+        startNewChat()
+    }, [])
 
-    
-    const value={
-        navigate, user, setUser, fetchUser,chats,setChats,selectedChat,setSelectedChat,
+
+    const value = {
+        navigate, user, setUser, fetchUser, chats, setChats, selectedChat, setSelectedChat,
         theme, setTheme,
         messages, setMessages,
         topChallenges, setTopChallenges,
@@ -87,4 +109,4 @@ export const AppContextProvider=({children})=>{
     )
 }
 
-export const useAppContext=()=> useContext(AppContext)
+export const useAppContext = () => useContext(AppContext)

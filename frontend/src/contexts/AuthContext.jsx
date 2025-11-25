@@ -1,6 +1,7 @@
 import { createContext, useState, useEffect, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { account, ID } from '../lib/appwrite';
+import { supabase } from '../lib/supabase';
 
 const AuthContext = createContext();
 
@@ -18,8 +19,15 @@ export const AuthProvider = ({ children }) => {
         try {
             const session = await account.getSession('current');
             if (session) {
-                const userData = await account.get();
-                setUser(userData);
+                const appwriteUser = await account.get();
+                // Fetch extra details from Supabase
+                const { data: supabaseUser } = await supabase
+                    .from('users')
+                    .select('*')
+                    .eq('user_id', appwriteUser.$id)
+                    .maybeSingle();
+
+                setUser({ ...appwriteUser, ...supabaseUser });
             }
         } catch (error) {
             console.log('No active session');
@@ -31,8 +39,10 @@ export const AuthProvider = ({ children }) => {
     // Register a new user
     const register = async (email, password, name) => {
         try {
-            await account.create(ID.unique(), email, password, name);
-            await login(email, password);
+            const result = await account.create(ID.unique(), email, password, name);
+            // We login immediately to get the session
+            const user = await login(email, password);
+            return user;
         } catch (error) {
             throw error;
         }
@@ -41,10 +51,20 @@ export const AuthProvider = ({ children }) => {
     // Login user
     const login = async (email, password) => {
         try {
-            await account.createEmailSession(email, password);
-            const userData = await account.get();
-            setUser(userData);
+            await account.createEmailPasswordSession(email, password);
+            const appwriteUser = await account.get();
+
+            // Fetch extra details from Supabase
+            const { data: supabaseUser } = await supabase
+                .from('users')
+                .select('*')
+                .eq('user_id', appwriteUser.$id)
+                .single();
+
+            const fullUser = { ...appwriteUser, ...supabaseUser };
+            setUser(fullUser);
             navigate('/');
+            return fullUser;
         } catch (error) {
             throw error;
         }
@@ -76,7 +96,7 @@ export const AuthProvider = ({ children }) => {
             logout,
             isAuthenticated
         }}>
-            {!loading && children}
+            {children}
         </AuthContext.Provider>
     );
 };

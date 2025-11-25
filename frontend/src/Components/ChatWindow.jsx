@@ -2,8 +2,10 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useAppContext } from '../Context/AppContext';
 import { assets } from '../assets/assets';
 import Message from './Message.jsx';
-import Loading from './Loading.jsx'; 
-import ChallengeCard from './ChallengeCard.jsx'; 
+import Loading from './Loading.jsx';
+import ChallengeCard from './ChallengeCard.jsx';
+import { supabase } from '../lib/supabase';
+import { useAuth } from '../contexts/AuthContext';
 
 const ChatWindow = () => {
   // ============================
@@ -14,11 +16,12 @@ const ChatWindow = () => {
   const containerRef = useRef(null);
   const inputRef = useRef(null);
   const { selectedChat, theme, createNewChat } = useAppContext();
+  const { user } = useAuth();
 
   // Chat State
   const [messages, setMessages] = useState([]);
   const [prompt, setPrompt] = useState('');
-  
+
   // UI State
   const [loading, setLoading] = useState(false);
   const [isProfiling, setIsProfiling] = useState(false);
@@ -52,7 +55,7 @@ const ChatWindow = () => {
     setError(null);
 
     const { profession, qualification, domain, specificGoal, location } = formData;
-    
+
     // Basic Validation
     if (!profession || !qualification || !domain || !specificGoal || !location) {
       alert('Please fill in all fields.');
@@ -84,22 +87,54 @@ const ChatWindow = () => {
     } catch (err) {
       console.error("API Error:", err);
       setError(err.message || "Failed to fetch challenges.");
-      setIsProfiling(true); 
+      setIsProfiling(true);
     } finally {
       setLoading(false);
     }
   };
 
-  const startProjectHandler = (challengeData) => {
-    const initialMessage = `I want to work on: "${challengeData.title}". Description: ${challengeData.description}`;
-    setTopChallenges(null);
-    
-    // This triggers the chat view, which will cause the Input Bar to render
-    if (createNewChat) {
-      createNewChat(initialMessage);
-    } else {
-      // Fallback for testing without context
-      setMessages(m => [...m, { role: 'system', content: initialMessage }]);
+  const startProjectHandler = async (challengeData) => {
+    if (!user) {
+      alert("You must be logged in to start a project.");
+      return;
+    }
+
+    try {
+      // Create project in Supabase
+      const { data, error } = await supabase
+        .from('projects')
+        .insert([
+          {
+            user_id: user.$id || user.user_id, // Handle both Appwrite/Supabase structure
+            title: challengeData.title,
+            description: challengeData.description,
+            original_problem: challengeData.description, // Assuming description is the problem
+            original_source: challengeData.source || "AI Generated",
+            sdg_tags: challengeData.sdgs || [],
+            solution_plan: "", // Initially empty
+            is_public: false
+          }
+        ])
+        .select();
+
+      if (error) throw error;
+
+      console.log("Project started:", data);
+      alert("Project saved to your Impact Dashboard!");
+
+      const initialMessage = `I want to work on: "${challengeData.title}". Description: ${challengeData.description}`;
+      setTopChallenges(null);
+
+      // This triggers the chat view
+      if (createNewChat) {
+        createNewChat(initialMessage);
+      } else {
+        setMessages(m => [...m, { role: 'system', content: initialMessage }]);
+      }
+
+    } catch (err) {
+      console.error("Error starting project:", err);
+      alert("Failed to save project. Please try again.");
     }
   };
 
@@ -135,10 +170,10 @@ const ChatWindow = () => {
   // ============================
   return (
     <div className="flex-1 flex flex-col justify-between m-5 md:m-10 xl:mx-30 max-md:mt-14 2xl:pr-40">
-      
+
       {/* Scrollable Content Area */}
       <div ref={containerRef} className="flex-1 overflow-y-auto pb-5 no-scrollbar relative">
-        
+
         {loading && <Loading />}
 
         {error && (
@@ -157,7 +192,7 @@ const ChatWindow = () => {
                 <ChallengeCard key={index} data={challenge} index={index} onStartProject={startProjectHandler} />
               ))}
             </div>
-            <button 
+            <button
               onClick={() => { setTopChallenges(null); setIsProfiling(true); }}
               className="mx-auto block mt-8 text-sm text-gray-500 hover:text-[#80609F] underline"
             >
@@ -192,22 +227,22 @@ const ChatWindow = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="text-xs font-bold uppercase text-gray-500 dark:text-gray-400">Profession</label>
-                      <input name="profession" value={formData.profession} onChange={handleInputChange} placeholder="e.g. Student" className="w-full p-3 mt-1 rounded-lg bg-gray-50 dark:bg-[#3E3452] border border-gray-200 dark:border-[#583C79] dark:text-white focus:ring-2 focus:ring-[#80609F] outline-none"/>
+                      <input name="profession" value={formData.profession} onChange={handleInputChange} placeholder="e.g. Student" className="w-full p-3 mt-1 rounded-lg bg-gray-50 dark:bg-[#3E3452] border border-gray-200 dark:border-[#583C79] dark:text-white focus:ring-2 focus:ring-[#80609F] outline-none" />
                     </div>
-                     <div>
+                    <div>
                       <label className="text-xs font-bold uppercase text-gray-500 dark:text-gray-400">Qualification</label>
-                      <input name="qualification" value={formData.qualification} onChange={handleInputChange} placeholder="e.g. B.Sc" className="w-full p-3 mt-1 rounded-lg bg-gray-50 dark:bg-[#3E3452] border border-gray-200 dark:border-[#583C79] dark:text-white focus:ring-2 focus:ring-[#80609F] outline-none"/>
+                      <input name="qualification" value={formData.qualification} onChange={handleInputChange} placeholder="e.g. B.Sc" className="w-full p-3 mt-1 rounded-lg bg-gray-50 dark:bg-[#3E3452] border border-gray-200 dark:border-[#583C79] dark:text-white focus:ring-2 focus:ring-[#80609F] outline-none" />
                     </div>
                   </div>
 
                   <div>
                     <label className="text-xs font-bold uppercase text-gray-500 dark:text-gray-400">Domain</label>
-                    <input name="domain" value={formData.domain} onChange={handleInputChange} placeholder="e.g. Climate Change" className="w-full p-3 mt-1 rounded-lg bg-gray-50 dark:bg-[#3E3452] border border-gray-200 dark:border-[#583C79] dark:text-white focus:ring-2 focus:ring-[#80609F] outline-none"/>
+                    <input name="domain" value={formData.domain} onChange={handleInputChange} placeholder="e.g. Climate Change" className="w-full p-3 mt-1 rounded-lg bg-gray-50 dark:bg-[#3E3452] border border-gray-200 dark:border-[#583C79] dark:text-white focus:ring-2 focus:ring-[#80609F] outline-none" />
                   </div>
 
                   <div>
                     <label className="text-xs font-bold uppercase text-gray-500 dark:text-gray-400">Location</label>
-                    <input name="location" value={formData.location} onChange={handleInputChange} placeholder="e.g. California" className="w-full p-3 mt-1 rounded-lg bg-gray-50 dark:bg-[#3E3452] border border-gray-200 dark:border-[#583C79] dark:text-white focus:ring-2 focus:ring-[#80609F] outline-none"/>
+                    <input name="location" value={formData.location} onChange={handleInputChange} placeholder="e.g. California" className="w-full p-3 mt-1 rounded-lg bg-gray-50 dark:bg-[#3E3452] border border-gray-200 dark:border-[#583C79] dark:text-white focus:ring-2 focus:ring-[#80609F] outline-none" />
                   </div>
 
                   <div>
