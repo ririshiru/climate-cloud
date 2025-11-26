@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Climate Cloud - PDF Indexer</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <h1>PDF Indexer</h1>
+        <p>Drag & drop PDF files to index them into the RAG pipeline.</p>
+        
+        <div class="drop-zone" id="dropZone">
+            <span class="drop-zone-icon">📄</span>
+            <span class="drop-zone-text">Drag files here or click to upload</span>
+            <input type="file" id="fileInput" accept=".pdf" multiple>
+        </div>
+
+        <div class="status-area" id="statusArea">
+            <!-- Status items will appear here -->
+        </div>
+    </div>
+
+    <script>
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const statusArea = document.getElementById('statusArea');
+
+        // Handle click to upload
+        dropZone.addEventListener('click', () => fileInput.click());
+
+        fileInput.addEventListener('change', (e) => {
+            handleFiles(e.target.files);
+        });
+
+        // Drag and drop events
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropZone.addEventListener(eventName, highlight, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, unhighlight, false);
+        });
+
+        function highlight(e) {
+            dropZone.classList.add('dragover');
+        }
+
+        function unhighlight(e) {
+            dropZone.classList.remove('dragover');
+        }
+
+        dropZone.addEventListener('drop', handleDrop, false);
+
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            handleFiles(files);
+        }
+
+        function handleFiles(files) {
+            ([...files]).forEach(uploadFile);
+        }
+
+        async function uploadFile(file) {
+            if (file.type !== 'application/pdf') {
+                addStatusItem(file.name, 'error', 'Not a PDF file');
+                return;
+            }
+
+            const statusId = addStatusItem(file.name, 'uploading', 'Indexing...');
+            const formData = new FormData();
+            formData.append('pdf', file);
+
+            try {
+                const response = await fetch('/api/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (response.ok && result.success) {
+                    updateStatusItem(statusId, 'success', `Indexed (${result.pages} pages)`);
+                } else {
+                    updateStatusItem(statusId, 'error', result.error || 'Upload failed');
+                }
+            } catch (error) {
+                updateStatusItem(statusId, 'error', 'Network error');
+                console.error('Error:', error);
+            }
+        }
+
+        function addStatusItem(fileName, type, message) {
+            const id = 'status-' + Math.random().toString(36).substr(2, 9);
+            const div = document.createElement('div');
+            div.id = id;
+            div.className = `status-item ${type}`;
+            
+            let icon = '';
+            if (type === 'uploading') icon = '<div class="spinner"></div>';
+            
+            div.innerHTML = `
+                <span>${fileName}</span>
+                <span style="display: flex; align-items: center; gap: 10px;">
+                    ${message} ${icon}
+                </span>
+            `;
+            statusArea.prepend(div);
+            return id;
+        }
+
+        function updateStatusItem(id, type, message) {
+            const item = document.getElementById(id);
+            if (item) {
+                item.className = `status-item ${type}`;
+                item.innerHTML = `
+                    <span>${item.querySelector('span').innerText}</span>
+                    <span>${message}</span>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>

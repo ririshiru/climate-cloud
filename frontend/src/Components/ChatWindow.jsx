@@ -11,7 +11,7 @@ const ChatWindow = () => {
   // ============================
   // 1. Configuration & State
   // ============================
-  const API_URL = 'http://localhost:5000/api/discover'; // Backend URL
+  const API_URL = 'http://localhost:3000/api/discover'; // Backend URL
 
   const containerRef = useRef(null);
   const inputRef = useRef(null);
@@ -21,6 +21,10 @@ const ChatWindow = () => {
   // Chat State
   const [messages, setMessages] = useState([]);
   const [prompt, setPrompt] = useState('');
+
+  // Solution State
+  const [showSolutionForm, setShowSolutionForm] = useState(false);
+  const [solutionText, setSolutionText] = useState('');
 
   // UI State
   const [loading, setLoading] = useState(false);
@@ -115,7 +119,8 @@ const ChatWindow = () => {
             is_public: false
           }
         ])
-        .select();
+        .select()
+        .single();
 
       if (error) throw error;
 
@@ -123,13 +128,21 @@ const ChatWindow = () => {
       alert("Project saved to your Impact Dashboard!");
 
       const initialMessage = `I want to work on: "${challengeData.title}". Description: ${challengeData.description}`;
-      setTopChallenges(null);
 
-      // This triggers the chat view
+      const newChat = {
+        _id: data.id,
+        name: data.title,
+        updatedAt: data.created_at,
+        messages: [{ role: 'system', content: initialMessage }]
+      };
+
+      // This triggers the chat view and updates sidebar
       if (createNewChat) {
-        createNewChat(initialMessage);
+        createNewChat(newChat);
       } else {
-        setMessages(m => [...m, { role: 'system', content: initialMessage }]);
+        // Fallback
+        setTopChallenges(null);
+        setMessages(newChat.messages);
       }
 
     } catch (err) {
@@ -138,25 +151,103 @@ const ChatWindow = () => {
     }
   };
 
-  const onChatSubmit = (e) => {
-    e.preventDefault();
-    if (!prompt.trim() || loading) return;
+  const handleSolutionSubmit = async () => {
+    if (!selectedChat || !solutionText.trim()) return;
 
-    setMessages(prev => [...prev, { role: 'user', content: prompt, timestamp: Date.now() }]);
+    try {
+      const { error } = await supabase
+        .from('projects')
+        .update({ solution_plan: solutionText })
+        .eq('id', selectedChat._id);
+
+      if (error) throw error;
+
+      alert("Solution drafted successfully! You can now submit it to the marketplace from your Impact Dashboard.");
+      setShowSolutionForm(false);
+      setSolutionText('');
+    } catch (error) {
+      console.error("Error saving solution:", error);
+      alert("Failed to save solution.");
+    }
+  };
+
+  const onChatSubmit = async (e) => {
+    e.preventDefault();
+    if (!prompt.trim() || loading || !selectedChat) return;
+
+    const userMessage = { role: 'user', content: prompt };
+
+    // Optimistic Update
+    setMessages(prev => [...prev, userMessage]);
     setPrompt('');
+    setLoading(true);
+
+    try {
+      const response = await fetch('http://localhost:3000/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectId: selectedChat._id,
+          message: userMessage.content
+        })
+      });
+
+      const data = await response.json();
+
+      if (!data.success) throw new Error(data.error || "Failed to get response");
+
+      const botMessage = { role: 'assistant', content: data.reply };
+      setMessages(prev => [...prev, botMessage]);
+
+    } catch (err) {
+      console.error("Chat API Error:", err);
+      setError("Failed to send message. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   // ============================
   // 3. Effects
   // ============================
   useEffect(() => {
-    if (selectedChat?.messages) {
-      setMessages(selectedChat.messages);
-      setIsProfiling(false);
-      setTopChallenges(null);
-    } else {
-      setMessages([]);
-    }
+    const fetchChatHistory = async () => {
+      if (selectedChat && selectedChat._id) {
+        setLoading(true);
+        try {
+          const { data, error } = await supabase
+            .from('messages')
+            .select('*')
+            .eq('project_id', selectedChat._id)
+            .order('created_at', { ascending: true });
+
+          if (error) throw error;
+
+          if (data && data.length > 0) {
+            const formattedMessages = data.map(msg => ({
+              role: msg.role,
+              content: msg.content
+            }));
+            setMessages(formattedMessages);
+          } else {
+            // Fallback to initial problem description if no chat history
+            setMessages(selectedChat.messages || []);
+          }
+        } catch (err) {
+          console.error("Error fetching chat history:", err);
+          // Fallback on error
+          setMessages(selectedChat.messages || []);
+        } finally {
+          setLoading(false);
+          setIsProfiling(false);
+          setTopChallenges(null);
+        }
+      } else {
+        setMessages([]);
+      }
+    };
+
+    fetchChatHistory();
   }, [selectedChat]);
 
   useEffect(() => {
@@ -261,12 +352,55 @@ const ChatWindow = () => {
             {/* Chat Messages */}
             {selectedChat && messages.length > 0 && (
               <div className="space-y-6">
+                {/* Header with Draft Solution Button */}
+                <div className="flex justify-between items-center pb-4 border-b border-gray-200 dark:border-gray-700">
+                  <h2 className="text-xl font-bold text-[#80609F] dark:text-primary truncate max-w-[70%]">{selectedChat.name}</h2>
+                  <button
+                    onClick={() => setShowSolutionForm(true)}
+                    className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-sm rounded-lg shadow transition-all"
+                  >
+                    Draft Solution
+                  </button>
+                </div>
                 {messages.map((msg, index) => <Message key={index} message={msg} />)}
               </div>
             )}
           </>
         )}
       </div>
+
+      {/* Solution Drafting Modal */}
+      {showSolutionForm && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-[#282136] p-6 rounded-xl shadow-2xl w-full max-w-2xl m-4 border border-gray-200 dark:border-[#583C79]">
+            <h3 className="text-2xl font-bold mb-4 text-[#80609F] dark:text-primary">Draft Your Solution</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+              Describe your proposed solution for this problem. This will be saved to your dashboard and is required before submitting to the marketplace.
+            </p>
+            <textarea
+              value={solutionText}
+              onChange={(e) => setSolutionText(e.target.value)}
+              rows="10"
+              className="w-full p-4 rounded-lg bg-gray-50 dark:bg-[#3E3452] border border-gray-200 dark:border-[#583C79] dark:text-white focus:ring-2 focus:ring-[#80609F] outline-none resize-none mb-4"
+              placeholder="Outline your approach, technologies, and implementation plan..."
+            ></textarea>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setShowSolutionForm(false)}
+                className="px-6 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSolutionSubmit}
+                className="px-6 py-2 bg-[#80609F] text-white font-bold rounded-lg hover:bg-[#6A4D85] dark:bg-primary dark:text-gray-900"
+              >
+                Save Draft
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* =========================================
         CHAT INPUT AREA (COMPLETELY REMOVED ON WELCOME)

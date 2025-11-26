@@ -1,30 +1,29 @@
 import { createContext, useEffect, useState, useContext } from "react";
 import { useNavigate } from "react-router-dom";
-import { dummyChats, dummyUserData } from "../assets/assets";
 import { supabase } from "../lib/supabase";
+import { useAuth } from "../contexts/AuthContext";
 
 const AppContext = createContext()
 
 export const AppContextProvider = ({ children }) => {
 
     const navigate = useNavigate()
-    const [user, setUser] = useState(null);
+    const { user } = useAuth(); // Use real authenticated user
+
     const [chats, setChats] = useState([]);
     const [selectedChat, setSelectedChat] = useState(null);
-    const [messages, setMessages] = useState([]); // New state for current chat messages
-    const [topChallenges, setTopChallenges] = useState(null); // New state for challenges
-    const [isProfiling, setIsProfiling] = useState(false); // New state for profiling mode
-    // New state to hold the AI output that the user can choose to store in 'My Impact'
+    const [messages, setMessages] = useState([]);
+    const [topChallenges, setTopChallenges] = useState(null);
+    const [isProfiling, setIsProfiling] = useState(false);
     const [currentProjectResult, setCurrentProjectResult] = useState(null);
 
     const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light');
 
-    const fetchUser = async () => {
-        setUser(dummyUserData)
-    }
-
     const fetchUsersChats = async () => {
-        if (!user) return;
+        if (!user) {
+            setChats([]);
+            return;
+        }
 
         try {
             const { data, error } = await supabase
@@ -35,8 +34,11 @@ export const AppContextProvider = ({ children }) => {
 
             if (error) throw error;
 
+            // Filter projects that do NOT have a solution plan yet
+            const activeProjects = data.filter(project => !project.solution_plan || project.solution_plan.trim() === "");
+
             // Map projects to chat format for sidebar
-            const mappedChats = data.map(project => ({
+            const mappedChats = activeProjects.map(project => ({
                 _id: project.id,
                 name: project.title,
                 updatedAt: project.created_at,
@@ -61,11 +63,21 @@ export const AppContextProvider = ({ children }) => {
         setSelectedChat(null);
         setMessages([]);
         setTopChallenges(null);
-        setIsProfiling(false); // Assuming new chat is not profiling initially
+        setIsProfiling(false);
         navigate('/');
     }
 
-    // Toggle theme logic (Uncommented and improved)
+    // Function to handle creation of a new chat from a project
+    const createNewChat = (newChat) => {
+        setChats(prev => [newChat, ...prev]);
+        setSelectedChat(newChat);
+        setMessages(newChat.messages);
+        setTopChallenges(null);
+        setIsProfiling(false);
+        navigate('/');
+    }
+
+    // Toggle theme logic
     useEffect(() => {
         if (theme === 'dark') {
             document.documentElement.classList.add('dark');
@@ -75,32 +87,30 @@ export const AppContextProvider = ({ children }) => {
         localStorage.setItem('theme', theme)
     }, [theme])
 
+    // Fetch chats when user changes
     useEffect(() => {
         if (user) {
             fetchUsersChats()
-        }
-        else {
+        } else {
             setChats([])
             setSelectedChat(null)
         }
     }, [user])
 
     useEffect(() => {
-        fetchUser()
-        // Issue 5: When the site opens, start a new chat, not an old one.
         startNewChat()
     }, [])
 
-
     const value = {
-        navigate, user, setUser, fetchUser, chats, setChats, selectedChat, setSelectedChat,
+        navigate, user, chats, setChats, selectedChat, setSelectedChat,
         theme, setTheme,
         messages, setMessages,
         topChallenges, setTopChallenges,
         isProfiling, setIsProfiling,
-        currentProjectResult, setCurrentProjectResult, // Added new project state
-        startNewChat, // Added new chat function
-        clearChatHistory // Added clear history function
+        currentProjectResult, setCurrentProjectResult,
+        startNewChat,
+        createNewChat,
+        clearChatHistory
     }
     return (
         <AppContext.Provider value={value}>

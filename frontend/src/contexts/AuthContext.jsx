@@ -37,13 +37,38 @@ export const AuthProvider = ({ children }) => {
     };
 
     // Register a new user
-    const register = async (email, password, name) => {
+    const register = async (email, password, name, role, profession, interests) => {
         try {
-            const result = await account.create(ID.unique(), email, password, name);
-            // We login immediately to get the session
-            const user = await login(email, password);
-            return user;
+            // 1. Create Appwrite Account
+            await account.create(ID.unique(), email, password, name);
+
+            // 2. Login to get session (required for Supabase RLS if enabled, or just to get ID)
+            await account.createEmailPasswordSession(email, password);
+            const appwriteUser = await account.get();
+
+            // 3. Create Supabase Profile
+            const { error } = await supabase
+                .from('users')
+                .insert([
+                    {
+                        user_id: appwriteUser.$id,
+                        name: name,
+                        email: email,
+                        role: role,
+                        profession: profession,
+                        interests: interests.split(',').map(i => i.trim())
+                    }
+                ]);
+
+            if (error) throw error;
+
+            // 4. Set User State
+            const fullUser = { ...appwriteUser, role, profession, interests };
+            setUser(fullUser);
+            return fullUser;
+
         } catch (error) {
+            console.error("Registration Error:", error);
             throw error;
         }
     };
@@ -59,11 +84,10 @@ export const AuthProvider = ({ children }) => {
                 .from('users')
                 .select('*')
                 .eq('user_id', appwriteUser.$id)
-                .single();
+                .maybeSingle();
 
             const fullUser = { ...appwriteUser, ...supabaseUser };
             setUser(fullUser);
-            navigate('/');
             return fullUser;
         } catch (error) {
             throw error;
@@ -75,7 +99,7 @@ export const AuthProvider = ({ children }) => {
         try {
             await account.deleteSession('current');
             setUser(null);
-            navigate('/login');
+            navigate('/auth');
         } catch (error) {
             console.error('Logout failed:', error);
             throw error;

@@ -3,7 +3,8 @@ import { useAppContext } from '../Context/AppContext'
 import { useAuth } from '../contexts/AuthContext'
 import { assets } from '../assets/assets'
 import moment from 'moment'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
+import { LineChart } from 'lucide-react'
 
 const NavSidebar = ({ isMenuOpen, setIsMenuOpen }) => {
 
@@ -19,6 +20,7 @@ const NavSidebar = ({ isMenuOpen, setIsMenuOpen }) => {
     const [search, setSearch] = useState('')
 
     const navigate = useNavigate()
+    const location = useLocation()
 
     // Placeholder function for logout.
     const handleLogout = async () => {
@@ -143,6 +145,21 @@ const NavSidebar = ({ isMenuOpen, setIsMenuOpen }) => {
                     </p>
                 )}
             </div>
+
+            {/* Investor Dashboard Link */}
+            {user?.role === 'investor' && (
+                <div
+                    onClick={() => { navigate('/InvestorPage') }}
+                    className={`flex items-center gap-2 p-2 mx-4 mb-2 border border-gray-300
+              dark:border-white/15 rounded-md cursor-pointer hover:scale-[1.01] transition-all
+              ${location.pathname === '/InvestorPage' ? 'bg-[#57317C]/20 dark:bg-[#57317C]/30' : ''}`}
+                >
+                    <LineChart className="w-5 h-5 text-gray-600 dark:text-gray-300" />
+                    <div className='flex flex-col text-sm'>
+                        <p>Investor Dashboard</p>
+                    </div>
+                </div>
+            )}
 
             {/* My Impact Link */}
             <div

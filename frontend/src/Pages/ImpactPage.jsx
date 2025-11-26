@@ -82,6 +82,18 @@ const ImpactPage = () => {
                     </span>
                   ))}
                 </div>
+
+                {project.solution_plan ? (
+                  <div className="mb-4 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-100 dark:border-green-900/30">
+                    <p className="text-xs font-bold text-green-700 dark:text-green-400 uppercase mb-1">Solution Drafted</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-300 line-clamp-2">{project.solution_plan}</p>
+                  </div>
+                ) : (
+                  <div className="mb-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-100 dark:border-yellow-900/30">
+                    <p className="text-xs font-bold text-yellow-700 dark:text-yellow-400 uppercase mb-1">Action Required</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-300">Draft a solution in the chat to proceed.</p>
+                  </div>
+                )}
               </div>
 
               <div className="mt-4 pt-4 border-t border-gray-100 dark:border-[#3E3452]">
@@ -92,9 +104,13 @@ const ImpactPage = () => {
                 ) : (
                   <button
                     onClick={() => submitToMarketplace(project.id)}
-                    className="w-full py-2 bg-[#80609F] text-white rounded-lg hover:bg-[#6A4D85] transition-colors text-sm font-semibold dark:bg-primary dark:text-gray-900"
+                    disabled={!project.solution_plan}
+                    className={`w-full py-2 rounded-lg transition-colors text-sm font-semibold ${project.solution_plan
+                        ? 'bg-[#80609F] text-white hover:bg-[#6A4D85] dark:bg-primary dark:text-gray-900'
+                        : 'bg-gray-300 text-gray-500 cursor-not-allowed dark:bg-gray-700 dark:text-gray-400'
+                      }`}
                   >
-                    Submit to Marketplace
+                    {project.solution_plan ? 'Submit to Marketplace' : 'Draft Solution First'}
                   </button>
                 )}
               </div>

@@ -1,11 +1,10 @@
 import React, { useState } from 'react'
-import { Routes, Route, useLocation } from 'react-router-dom'
+import { Routes, Route, useLocation, Navigate } from 'react-router-dom'
 import InvestorsPage from "./Pages/InvestorsPage.jsx";
 import ChatWindow from './Components/ChatWindow.jsx'
 import ImpactPage from './Pages/ImpactPage.jsx'
 import NavSidebar from './Components/NavSidebar.jsx';
-import LoginPage from './Pages/Login.jsx';
-import RegisterPage from './Pages/Register.jsx';
+import AuthPage from './Pages/Auth.jsx';
 import ProtectedRoute from './Components/ProtectedRoute.jsx';
 import { useAppContext } from './Context/AppContext'
 import { assets } from './assets/assets';
@@ -16,7 +15,7 @@ const App = () => {
     const location = useLocation();
 
     // Hide sidebar on auth pages
-    const isAuthPage = location.pathname === '/login' || location.pathname === '/register';
+    const isAuthPage = location.pathname === '/auth';
 
     return (
         <>
@@ -58,8 +57,9 @@ const App = () => {
                                     <ImpactPage />
                                 </ProtectedRoute>
                             } />
-                            <Route path='/login' element={<LoginPage />} />
-                            <Route path='/register' element={<RegisterPage />} />
+                            <Route path='/auth' element={<AuthPage />} />
+                            <Route path='/login' element={<Navigate to="/auth" replace />} />
+                            <Route path='/register' element={<Navigate to="/auth" replace />} />
                         </Routes>
                     </div>
 
