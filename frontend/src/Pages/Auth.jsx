@@ -71,7 +71,7 @@ const Auth = () => {
                     <img
                         src={theme === 'dark' ? assets.logo_dark_mode : assets.logo_light_mode}
                         alt="App Logo"
-                        className='w-16 mx-auto mb-4'
+                        className='w-64 mx-auto mb-4'
                     />
                     <h2 className='text-3xl font-bold'>{isLogin ? 'Welcome Back' : 'Join Climate Cloud'}</h2>
                     <p className='text-sm mt-2 text-gray-500 dark:text-gray-400'>
