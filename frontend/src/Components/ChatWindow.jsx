@@ -11,7 +11,7 @@ const ChatWindow = () => {
   // ============================
   // 1. Configuration & State
   // ============================
-  const API_URL = 'http://localhost:3000/api/discover'; // Backend URL
+  const API_URL = `${import.meta.env.VITE_BACKEND_URL}/api/discover`; // Backend URL
 
   const containerRef = useRef(null);
   const inputRef = useRef(null);
@@ -183,7 +183,7 @@ const ChatWindow = () => {
     setLoading(true);
 
     try {
-      const response = await fetch('http://localhost:3000/api/chat', {
+      const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
